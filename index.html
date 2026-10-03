@@ -22,18 +22,20 @@
       text-align: center;
       padding: 10px;
     }
-    .title {
-      font-size: 0.9rem;
-      color: #aaa;
-      margin-bottom: 4px;
-      text-transform: uppercase;
+    .current-clock {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #00b4d8;
       letter-spacing: 1px;
+      margin-bottom: 2px;
     }
     .city {
-      font-size: 1.1rem;
-      font-weight: bold;
-      color: #3498db;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #aaa;
       margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
     .grid {
       display: grid;
@@ -48,16 +50,9 @@
       border-radius: 10px;
       padding: 6px 4px;
     }
-    .vakit-box.active {
-      background: #1b3a4b;
-      border-color: #00b4d8;
-    }
     .vakit-isim {
       font-size: 0.75rem;
       color: #888;
-    }
-    .vakit-box.active .vakit-isim {
-      color: #90e0ef;
     }
     .vakit-saat {
       font-size: 1.1rem;
@@ -67,20 +62,31 @@
     .loading {
       font-size: 0.9rem;
       color: #f39c12;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <div class="title">Namaz Vakitleri</div>
+  <!-- En üstte anlık dijital saat -->
+  <div id="clock" class="current-clock">00:00:00</div>
   <div class="city">Antalya / Kepez</div>
 
   <div id="content" class="loading">Vakitler yükleniyor...</div>
 
   <script>
+    // Anlık saati güncelleyen fonksiyon (Her 1 saniyede bir çalışır)
+    function saatiGuncelle() {
+      const simdi = new Date();
+      const saat = String(simdi.getHours()).padStart(2, '0');
+      const dakika = String(simdi.getMinutes()).padStart(2, '0');
+      const saniye = String(simdi.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').innerText = `${saat}:${dakika}:${saniye}`;
+    }
+
+    // Namaz vakitlerini API'den çeken fonksiyon
     async function vakitleriGetir() {
       try {
-        // Aladhan API (Diyanet İşleri Başkanlığı takvimi ile uyumlu)
         const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Antalya&country=Turkey&method=13');
         const data = await response.json();
         
@@ -88,7 +94,7 @@
           const t = data.data.timings;
           
           const vakitler = [
-            { isim: 'Imsak', saat: t.Imsak },
+            { isim: 'İmsak', saat: t.Imsak },
             { isim: 'Güneş', saat: t.Sunrise },
             { isim: 'Öğle', saat: t.Dhuhr },
             { isim: 'İkindi', saat: t.Asr },
@@ -116,6 +122,11 @@
       }
     }
 
+    // Saat için her 1 saniyede bir yenileme
+    setInterval(saatiGuncelle, 1000);
+    saatiGuncelle(); // İlk açılışta anında göstermesi için
+
+    // Namaz vakitlerini bir kez yükle
     vakitleriGetir();
   </script>
 </body>
