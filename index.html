@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kepez Namaz Vakitleri</title>
+  <title>Namaz Vakitleri</title>
   <style>
     * {
       box-sizing: border-box;
@@ -23,19 +23,11 @@
       padding: 10px;
     }
     .current-clock {
-      font-size: 1.8rem;
+      font-size: 2.2rem;
       font-weight: bold;
       color: #00b4d8;
       letter-spacing: 1px;
-      margin-bottom: 2px;
-    }
-    .city {
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #aaa;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      margin-bottom: 12px;
     }
     .grid {
       display: grid;
@@ -49,6 +41,17 @@
       border: 1px solid #222;
       border-radius: 10px;
       padding: 6px 4px;
+    }
+    /* Yaklaşan vakit için kırmızı tasarım */
+    .vakit-box.next {
+      background: #3a0000;
+      border-color: #ff4d4d;
+    }
+    .vakit-box.next .vakit-isim {
+      color: #ff9999;
+    }
+    .vakit-box.next .vakit-saat {
+      color: #ff4d4d;
     }
     .vakit-isim {
       font-size: 0.75rem;
@@ -68,20 +71,55 @@
 </head>
 <body>
 
-  <!-- En üstte anlık dijital saat -->
-  <div id="clock" class="current-clock">00:00:00</div>
-  <div class="city">Antalya / Kepez</div>
+  <!-- En üstte anlık dijital saat (SS:MM) -->
+  <div id="clock" class="current-clock">00:00</div>
 
   <div id="content" class="loading">Vakitler yükleniyor...</div>
 
   <script>
-    // Anlık saati güncelleyen fonksiyon (Her 1 saniyede bir çalışır)
+    let globalVakitler = [];
+
+    // Anlık saati güncelleyen fonksiyon (SS:MM)
     function saatiGuncelle() {
       const simdi = new Date();
       const saat = String(simdi.getHours()).padStart(2, '0');
       const dakika = String(simdi.getMinutes()).padStart(2, '0');
-      const saniye = String(simdi.getSeconds()).padStart(2, '0');
-      document.getElementById('clock').innerText = `${saat}:${dakika}:${saniye}`;
+      document.getElementById('clock').innerText = `${saat}:${dakika}`;
+      
+      // Vakitler yüklendiyse yaklaşan vakti kontrol et/güncelle
+      if (globalVakitler.length > 0) {
+        yaklasanVaktiIsaretle();
+      }
+    }
+
+    // Yaklaşan en yakın namaz vaktini bulup kırmızı yapan fonksiyon
+    function yaklasanVaktiIsaretle() {
+      const simdi = new Date();
+      const mevcutDakika = simdi.getHours() * 60 + simdi.getMinutes();
+
+      let yaklasanIndex = -1;
+
+      for (let i = 0; i < globalVakitler.length; i++) {
+        const [h, m] = globalVakitler[i].saat.split(':').map(Number);
+        const vakitDakika = h * 60 + m;
+
+        if (vakitDakika > mevcutDakika) {
+          yaklasanIndex = i;
+          break;
+        }
+      }
+
+      // Eğer günün tüm vakitleri geçtiyse (Yatsıdan sonra), ilk vakit (İmsak) ertesi günün en yakın vaktidir
+      if (yaklasanIndex === -1) {
+        yaklasanIndex = 0;
+      }
+
+      // Tüm kutulardan 'next' sınıfını temizle ve sadece yaklaşan vakte ekle
+      const kutular = document.querySelectorAll('.vakit-box');
+      kutular.forEach((kut) => kut.classList.remove('next'));
+      if (kutular[yaklasanIndex]) {
+        kutular[yaklasanIndex].classList.add('next');
+      }
     }
 
     // Namaz vakitlerini API'den çeken fonksiyon
@@ -93,7 +131,7 @@
         if (data.code === 200) {
           const t = data.data.timings;
           
-          const vakitler = [
+          globalVakitler = [
             { isim: 'İmsak', saat: t.Imsak },
             { isim: 'Güneş', saat: t.Sunrise },
             { isim: 'Öğle', saat: t.Dhuhr },
@@ -103,7 +141,7 @@
           ];
 
           let html = '<div class="grid">';
-          vakitler.forEach(v => {
+          globalVakitler.forEach(v => {
             html += `
               <div class="vakit-box">
                 <div class="vakit-isim">${v.isim}</div>
@@ -114,6 +152,7 @@
           html += '</div>';
 
           document.getElementById('content').innerHTML = html;
+          yaklasanVaktiIsaretle();
         } else {
           document.getElementById('content').innerHTML = 'Veri alınamadı.';
         }
@@ -122,9 +161,9 @@
       }
     }
 
-    // Saat için her 1 saniyede bir yenileme
+    // Saat her saniye güncellenir (dakika geçişlerinde en yakın vakti anında güncellemek için)
     setInterval(saatiGuncelle, 1000);
-    saatiGuncelle(); // İlk açılışta anında göstermesi için
+    saatiGuncelle();
 
     // Namaz vakitlerini bir kez yükle
     vakitleriGetir();
