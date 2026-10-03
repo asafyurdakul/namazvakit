@@ -27,6 +27,14 @@
       font-weight: bold;
       color: #00b4d8;
       letter-spacing: 1px;
+      line-height: 1;
+    }
+    /* Saatin altındaki küçük kalan süre yazısı */
+    .kalan-sure {
+      font-size: 0.85rem;
+      color: #ff4d4d;
+      font-weight: 500;
+      margin-top: 4px;
       margin-bottom: 12px;
     }
     .grid {
@@ -42,7 +50,6 @@
       border-radius: 10px;
       padding: 6px 4px;
     }
-    /* Yaklaşan vakit için kırmızı tasarım */
     .vakit-box.next {
       background: #3a0000;
       border-color: #ff4d4d;
@@ -71,33 +78,32 @@
 </head>
 <body>
 
-  <!-- En üstte anlık dijital saat (SS:MM) -->
+  <!-- En üstte anlık saat ve hemen altında kalan süre -->
   <div id="clock" class="current-clock">00:00</div>
+  <div id="kalan-sure" class="kalan-sure"></div>
 
   <div id="content" class="loading">Vakitler yükleniyor...</div>
 
   <script>
     let globalVakitler = [];
 
-    // Anlık saati güncelleyen fonksiyon (SS:MM)
     function saatiGuncelle() {
       const simdi = new Date();
       const saat = String(simdi.getHours()).padStart(2, '0');
       const dakika = String(simdi.getMinutes()).padStart(2, '0');
       document.getElementById('clock').innerText = `${saat}:${dakika}`;
       
-      // Vakitler yüklendiyse yaklaşan vakti kontrol et/güncelle
       if (globalVakitler.length > 0) {
         yaklasanVaktiIsaretle();
       }
     }
 
-    // Yaklaşan en yakın namaz vaktini bulup kırmızı yapan fonksiyon
     function yaklasanVaktiIsaretle() {
       const simdi = new Date();
       const mevcutDakika = simdi.getHours() * 60 + simdi.getMinutes();
 
       let yaklasanIndex = -1;
+      let yaklasanDakika = 0;
 
       for (let i = 0; i < globalVakitler.length; i++) {
         const [h, m] = globalVakitler[i].saat.split(':').map(Number);
@@ -105,16 +111,37 @@
 
         if (vakitDakika > mevcutDakika) {
           yaklasanIndex = i;
+          yaklasanDakika = vakitDakika;
           break;
         }
       }
 
-      // Eğer günün tüm vakitleri geçtiyse (Yatsıdan sonra), ilk vakit (İmsak) ertesi günün en yakın vaktidir
+      // Günün tüm vakitleri geçtiyse (Yatsıdan sonra) -> Ertesi günün İmsak vakti
+      let farkDakika = 0;
       if (yaklasanIndex === -1) {
         yaklasanIndex = 0;
+        const [h, m] = globalVakitler[0].saat.split(':').map(Number);
+        const ertesiImsakDakika = (24 * 60) + (h * 60 + m);
+        farkDakika = ertesiImsakDakika - mevcutDakika;
+      } else {
+        farkDakika = yaklasanDakika - mevcutDakika;
       }
 
-      // Tüm kutulardan 'next' sınıfını temizle ve sadece yaklaşan vakte ekle
+      // Kalan süre metnini biçimlendir
+      let kalanMetin = '';
+      if (farkDakika <= 0) {
+        kalanMetin = 'Vakit geldi';
+      } else if (farkDakika < 60) {
+        kalanMetin = `Kalan: ${farkDakika} dk`;
+      } else {
+        const saatFark = Math.floor(farkDakika / 60);
+        const dkFark = farkDakika % 60;
+        kalanMetin = `Kalan: ${saatFark} sa ${dkFark} dk`;
+      }
+
+      document.getElementById('kalan-sure').innerText = kalanMetin;
+
+      // Kutuları güncelle
       const kutular = document.querySelectorAll('.vakit-box');
       kutular.forEach((kut) => kut.classList.remove('next'));
       if (kutular[yaklasanIndex]) {
@@ -122,7 +149,6 @@
       }
     }
 
-    // Namaz vakitlerini API'den çeken fonksiyon
     async function vakitleriGetir() {
       try {
         const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Antalya&country=Turkey&method=13');
@@ -161,11 +187,8 @@
       }
     }
 
-    // Saat her saniye güncellenir (dakika geçişlerinde en yakın vakti anında güncellemek için)
     setInterval(saatiGuncelle, 1000);
     saatiGuncelle();
-
-    // Namaz vakitlerini bir kez yükle
     vakitleriGetir();
   </script>
 </body>
